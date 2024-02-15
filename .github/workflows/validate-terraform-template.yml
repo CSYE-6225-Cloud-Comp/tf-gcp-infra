@@ -1,4 +1,4 @@
-# Validate Terraform Templates
+# Validate Terraform Templates on pull request
 name: Validate Terraform Templates
 
 on:
