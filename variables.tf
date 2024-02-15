@@ -38,10 +38,6 @@ variable ip_cidr_range_db {
     type = string
 }
 
-variable region {
-    type = string
-}
-
 variable zone {
     type = string
 }
@@ -80,4 +76,20 @@ variable enable_ula_internal_ipv6 {
 
 variable priority {
     type = number
+}
+
+variable region_subnet_1 {
+    type = string
+}
+
+variable region_subnet_2 {
+    type = string
+}
+
+variable gcp_region {
+    type = string
+}
+
+variable default_internet_gateway {
+    type = string
 }
