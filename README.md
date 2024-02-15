@@ -1,11 +1,14 @@
 # Cloud Native Web Application - Infrastructure Code
 
 ### Description
-Configuration for creating a VPC, two subnets and a route to access internet
+Configuration for creating a VPC, two subnets and a route to access the internet
 
 ### Requirements
 1. Terraform
 2. GCP
+
+### GCP Services Enabled
+1. Compute Engine API
 
 ### Build and Deploy Instructions
 1. Clone the respository in your local machine using the `git clone` command.
@@ -14,3 +17,4 @@ Configuration for creating a VPC, two subnets and a route to access internet
 4. Run `terraform validate` to check for any syntax errors.
 5. Run `terraform plan`. This command will show what resources are changed.
 6. Run `terraform apply` to create GCP resources. You can view the created resources on GCP console.
+

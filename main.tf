@@ -23,7 +23,7 @@ resource "google_compute_network" "vpc_network" {
 resource "google_compute_subnetwork" "vpc_subnet_webapp" {
     name = var.subnet-1-name
     description = var.webapp_subnet_description
-    region = var.region
+    region = var.region_subnet_1
     network = google_compute_network.vpc_network.id
     ip_cidr_range = var.ip_cidr_range_webapp 
     private_ip_google_access = var.private_ip_google_access
@@ -33,7 +33,7 @@ resource "google_compute_subnetwork" "vpc_subnet_webapp" {
 resource "google_compute_subnetwork" "vpc_subnet_db" {
     name = var.subnet-2-name 
     description = var.db_subnet_description
-    region = var.region
+    region = var.region_subnet_2
     network = google_compute_network.vpc_network.id
     ip_cidr_range = var.ip_cidr_range_db
     private_ip_google_access = var.private_ip_google_access
@@ -45,5 +45,5 @@ resource "google_compute_route" "internet-route" {
     network = google_compute_network.vpc_network.id
     dest_range = var.internet_gateway_dest_range
     priority = var.priority
-    next_hop_gateway = "default-internet-gateway"
+    next_hop_gateway = var.default_internet_gateway
 }
