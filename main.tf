@@ -16,6 +16,7 @@ resource "google_compute_network" "vpc_network" {
     delete_default_routes_on_create = var.delete_default_routes_on_create
     enable_ula_internal_ipv6 = var.enable_ula_internal_ipv6
     mtu = var.maximum_transmission_unit
+}
 
 # Create two subnets in the VPC network
 #Subnet 1 - For webapp. This subnet will have access to internet
