@@ -47,3 +47,29 @@ resource "google_compute_route" "internet-route" {
     priority = var.priority
     next_hop_gateway = var.default_internet_gateway
 }
+
+# Add a firewall rule to allow traffic from internet to webapp subnet
+resource "google_compute_firewall" "allow-webapp-traffic" {
+    name = var.webapp_firewall_rule_name
+    network = google_compute_network.vpc_network.id
+    allow {
+        protocol = var.webapp_protocol # TCP
+        ports = var.webapp_ports # 3000
+    }
+    source_ranges = var.source_ranges # 0.0.0.0/0
+    target_tags = var.target_tags
+}
+
+# Add a firewall rule to deny traffic from internet to ssh port
+resource "google_compute_firewall" "deny-ssh-traffic" {
+    name = var.ssh_firewall_rule_name_deny
+    network = google_compute_network.vpc_network.id
+    deny {
+        protocol = var.ssh_protocol # TCP
+        ports = var.ssh_ports # 22
+    }
+    source_ranges = var.source_ranges # 0.0.0.0/0
+    target_tags = var.target_tags
+}
+
+# Configure a VM

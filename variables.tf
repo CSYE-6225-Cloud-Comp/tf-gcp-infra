@@ -93,3 +93,35 @@ variable gcp_region {
 variable default_internet_gateway {
     type = string
 }
+
+variable webapp_firewall_rule_name {
+    type = string
+}
+
+variable ssh_firewall_rule_name_deny {
+    type = string
+}
+
+variable webapp_protocol {
+    type = string
+}
+
+variable webapp_ports {
+    type = list(string)
+}
+
+variable source_ranges {
+    type = list(string)
+}
+
+variable target_tags {
+    type = list(string)
+}
+
+variable ssh_protocol {
+    type = string
+}
+
+variable ssh_ports {
+    type = list(string)
+}
