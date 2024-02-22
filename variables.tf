@@ -125,3 +125,111 @@ variable ssh_protocol {
 variable ssh_ports {
     type = list(string)
 }
+
+variable direction {
+    type = string
+}
+
+variable tags {
+    type = list(string)
+}
+
+variable auto_delete {
+    type = bool
+}
+
+variable device_name {
+    type = string
+}
+
+variable image {
+    type = string
+}
+
+variable size {
+    type = number
+}
+
+variable type {
+    type = string
+}
+
+variable mode {
+    type = string
+}
+
+variable vm_zone {
+    type = string
+}
+
+variable machine_type {
+    type = string
+}
+
+variable vm_name {
+    type = string
+}
+
+variable can_ip_forward {
+    type = bool
+}
+
+variable deletion_protection {
+    type = bool
+}
+
+variable enable_display {
+    type = bool
+}
+
+variable goog-ec-src {
+    type = string
+}
+
+variable network_tier {
+    type = string
+}
+
+variable queue_count {
+    type = number
+}
+
+variable stack_type {
+    type = string
+}
+
+variable automatic_restart {
+    type = bool
+}
+
+variable on_host_maintenance {
+    type = string
+}
+
+variable preemptible {
+    type = bool
+}
+
+variable provisioning_model {
+    type = string
+}
+
+variable email {
+    type = string
+}
+
+variable scopes {
+    type = list(string)
+}
+
+variable enable_integrity_monitoring {
+    type = bool
+}
+
+variable enable_secure_boot {
+    type = bool
+}
+
+variable enable_vtpm {
+    type = bool
+}
