@@ -66,6 +66,7 @@ resource "google_compute_firewall" "allow-webapp-traffic" {
     name = var.webapp_firewall_rule_name
     network = google_compute_network.vpc_network.id
     direction = var.direction
+    priority = var.firewall_priority
     allow {
         protocol = var.webapp_protocol # TCP
         ports = var.webapp_ports # 3000
@@ -131,7 +132,109 @@ resource "google_compute_instance" "webapp" {
 
   zone = var.vm_zone
   tags = var.tags
+
+  metadata_startup_script = <<-EOT
+      #!/bin/bash
+      cd /opt/webapp
+      touch .env
+      echo DB_HOST=${google_sql_database_instance.webapp-db-instance.private_ip_address} >> .env
+      echo DB_PORT=3306 >> .env
+      echo DB_USER=${google_sql_user.webapp-db-user.name} >> .env
+      echo DB_PASSWORD=${random_password.password.result} >> .env
+      echo DB_SCHEMA=${google_sql_database.webapp-db.name} >> .env
+      echo DB_TIMEZONE=-05:00 >> .env
+      echo PORT=3000 >> .env
+      cat .env
+
+      EOT
 }
+
+# Create a database instance
+resource "google_sql_database_instance" "webapp-db-instance" {
+  name             = "${var.db_instance_name}-${random_string.db_instance_suffix.result}"
+  database_version = var.database_version
+  region           = var.db_region
+  deletion_protection = var.db_deletion_protection
+
+  depends_on = [google_service_networking_connection.default]
+
+  settings {
+    # Second-generation instance tiers are based on the machine
+    # type. See argument reference below.
+    tier = var.db_tier
+    availability_type = var.availability_type
+    disk_type = var.disk_type
+    disk_size = var.disk_size
+
+    ip_configuration {
+      ipv4_enabled    = var.ipv4_enabled
+      private_network = google_compute_network.vpc_network.id
+    }
+
+    backup_configuration {
+      enabled = var.backup_enabled
+      binary_log_enabled = var.binary_log_enabled
+    }
+
+  }
+}
+
+# Create a database
+resource "google_sql_database" "webapp-db" {
+  name     = "${var.db_name}-${random_string.db_suffix.result}"
+  instance = google_sql_database_instance.webapp-db-instance.name
+}
+
+# Create a database user
+resource "google_sql_user" "webapp-db-user" {
+  name     = "${var.db_user_name}-${random_string.db_user_suffix.result}"
+  instance = google_sql_database_instance.webapp-db-instance.name
+  password = random_password.password.result
+}
+
+resource "google_compute_global_address" "private_ip_address" {
+  name          = "private-ip-address"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = google_compute_network.vpc_network.id
+}
+
+resource "google_service_networking_connection" "default" {
+  network                 = google_compute_network.vpc_network.id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
+}
+
+
+# Create a random password for the database user
+resource "random_password" "password" {
+  length           = var.password_length
+  special          = var.password_special
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+# Create a random suffix for the database instance
+resource "random_string" "db_instance_suffix" {
+  length  = 4
+  special = false
+  upper = false
+}
+
+# Create a random suffix for the database user
+resource "random_string" "db_user_suffix" {
+  length  = 4
+  special = false
+  upper = false
+}
+
+# Create a random suffix for the database
+resource "random_string" "db_suffix" {
+  length  = 4
+  special = false
+  upper = false
+}
+
 
 
 

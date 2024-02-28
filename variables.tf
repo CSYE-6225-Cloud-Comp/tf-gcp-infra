@@ -233,3 +233,67 @@ variable enable_secure_boot {
 variable enable_vtpm {
     type = bool
 }
+
+variable db_deletion_protection {
+    type = bool
+}
+
+variable availability_type {
+    type = string
+}
+
+variable disk_type {
+    type = string
+}
+
+variable disk_size {
+    type = number
+}
+
+variable ipv4_enabled {
+    type = bool
+}
+
+variable db_instance_name {
+    type = string
+}
+
+variable database_version {
+    type = string
+}
+
+variable db_region {
+    type = string
+}
+
+variable db_tier {
+    type = string
+}
+
+variable db_name {
+    type = string
+}
+
+variable db_user_name {
+    type = string
+}
+
+variable password_length {
+    type = number
+}
+
+variable password_special {
+    type = bool
+}
+
+variable backup_enabled {
+    type = bool
+}
+
+variable binary_log_enabled {
+    type = bool
+}
+
+variable firewall_priority {
+    type = number
+}
