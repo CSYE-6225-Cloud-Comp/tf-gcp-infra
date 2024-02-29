@@ -133,20 +133,39 @@ resource "google_compute_instance" "webapp" {
   zone = var.vm_zone
   tags = var.tags
 
-  metadata_startup_script = <<-EOT
+
+  metadata = {
+    startup-script = <<-EOT
       #!/bin/bash
       cd /opt/webapp
-      touch .env
-      echo DB_HOST=${google_sql_database_instance.webapp-db-instance.private_ip_address} >> .env
-      echo DB_PORT=3306 >> .env
-      echo DB_USER=${google_sql_user.webapp-db-user.name} >> .env
-      echo DB_PASSWORD=${random_password.password.result} >> .env
-      echo DB_SCHEMA=${google_sql_database.webapp-db.name} >> .env
-      echo DB_TIMEZONE=-05:00 >> .env
-      echo PORT=3000 >> .env
-      cat .env
+
+      if [ ! -f /opt/webapp/.env ]; then
+          touch /opt/webapp/.env
+          echo DB_HOST=${google_sql_database_instance.webapp-db-instance.private_ip_address} >> .env
+          echo DB_PORT=3306 >> .env
+          echo DB_USER=${google_sql_user.webapp-db-user.name} >> .env
+          echo DB_PASSWORD=${random_password.password.result} >> .env
+          echo DB_SCHEMA=${google_sql_database.webapp-db.name} >> .env
+          echo DB_TIMEZONE=-05:00 >> .env
+          echo PORT=3000 >> .env
+          cat .env
+      else 
+        if [ ! -s /opt/webapp/.env ]; then
+          echo DB_HOST=${google_sql_database_instance.webapp-db-instance.private_ip_address} >> .env
+          echo DB_PORT=3306 >> .env
+          echo DB_USER=${google_sql_user.webapp-db-user.name} >> .env
+          echo DB_PASSWORD=${random_password.password.result} >> .env
+          echo DB_SCHEMA=${google_sql_database.webapp-db.name} >> .env
+          echo DB_TIMEZONE=-05:00 >> .env
+          echo PORT=3000 >> .env
+          cat .env
+        fi
+      fi
 
       EOT
+  }
+
+  # metadata_startup_script = 
 }
 
 # Create a database instance
@@ -193,16 +212,16 @@ resource "google_sql_user" "webapp-db-user" {
 }
 
 resource "google_compute_global_address" "private_ip_address" {
-  name          = "private-ip-address"
-  purpose       = "VPC_PEERING"
-  address_type  = "INTERNAL"
-  prefix_length = 16
+  name          = var.private_ip_address
+  purpose       = var.purpose
+  address_type  = var.address_type
+  prefix_length = var.prefix_length
   network       = google_compute_network.vpc_network.id
 }
 
 resource "google_service_networking_connection" "default" {
   network                 = google_compute_network.vpc_network.id
-  service                 = "servicenetworking.googleapis.com"
+  service                 = var.service
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
 }
 
@@ -211,30 +230,27 @@ resource "google_service_networking_connection" "default" {
 resource "random_password" "password" {
   length           = var.password_length
   special          = var.password_special
-  override_special = "!#$%&*()-_=+[]{}<>:?"
+  override_special = var.password_override_special
 }
 
 # Create a random suffix for the database instance
 resource "random_string" "db_instance_suffix" {
-  length  = 4
-  special = false
-  upper = false
+  length  = var.suffix_length
+  special = var.suffix_special
+  upper = var.suffix_isUpperCase
 }
 
 # Create a random suffix for the database user
 resource "random_string" "db_user_suffix" {
-  length  = 4
-  special = false
-  upper = false
+  length  = var.suffix_length
+  special = var.suffix_special
+  upper = var.suffix_isUpperCase
 }
 
 # Create a random suffix for the database
 resource "random_string" "db_suffix" {
-  length  = 4
-  special = false
-  upper = false
+  length  = var.suffix_length
+  special = var.suffix_special
+  upper = var.suffix_isUpperCase
 }
-
-
-
 
