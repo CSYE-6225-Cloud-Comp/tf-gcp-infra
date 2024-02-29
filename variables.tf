@@ -333,3 +333,7 @@ variable password_override_special {
 variable service {
     type = string
 }
+
+variable global_address {
+    type = string
+}

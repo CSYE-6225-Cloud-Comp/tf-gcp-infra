@@ -217,6 +217,7 @@ resource "google_compute_global_address" "private_ip_address" {
   address_type  = var.address_type
   prefix_length = var.prefix_length
   network       = google_compute_network.vpc_network.id
+  address = var.global_address
 }
 
 resource "google_service_networking_connection" "default" {
@@ -224,7 +225,6 @@ resource "google_service_networking_connection" "default" {
   service                 = var.service
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
 }
-
 
 # Create a random password for the database user
 resource "random_password" "password" {
