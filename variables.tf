@@ -297,3 +297,39 @@ variable binary_log_enabled {
 variable firewall_priority {
     type = number
 }
+
+variable private_ip_address {
+    type = string
+}
+
+variable purpose {
+    type = string
+}
+
+variable address_type {
+    type = string
+}
+
+variable prefix_length {
+    type = number
+}
+
+variable suffix_length {
+    type = number
+}
+
+variable suffix_special {
+    type = bool
+}
+
+variable suffix_isUpperCase {
+    type = bool
+}
+
+variable password_override_special {
+    type = string
+}
+
+variable service {
+    type = string
+}
