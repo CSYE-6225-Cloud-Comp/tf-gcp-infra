@@ -249,6 +249,7 @@ resource "google_sql_user" "webapp-db-user" {
   password = random_password.password.result
 }
 
+# Create a private connection
 resource "google_compute_global_address" "private_ip_address" {
   name          = var.private_ip_address
   purpose       = var.purpose
