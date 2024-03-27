@@ -40,7 +40,7 @@ resource "google_dns_record_set" "default" {
   managed_zone = var.dns_public_zone_name
   name         = var.dns_record_name
   type         = var.dns_record_type
-  rrdatas      = [ google_compute_instance.webapp.network_interface[0].access_config[0].nat_ip ]
+  rrdatas      = [google_compute_instance.webapp.network_interface[0].access_config[0].nat_ip]
   ttl          = var.dns_record_ttl
   depends_on   = [google_compute_instance.webapp]
 }
@@ -297,98 +297,64 @@ resource "random_string" "db_suffix" {
 
 # Create a Pub/Sub topic
 resource "google_pubsub_topic" "topic" {
-  name = "verify_email"
-  message_retention_duration = "604800s"
+  name                       = var.topic_name
+  message_retention_duration = var.message_retention_duration
 }
 
 # Create a Pub/Sub subscription
 resource "google_pubsub_subscription" "subscription" {
-  name  = "verify_mail_subscription"
-  topic = google_pubsub_topic.topic.id
+  name                       = var.subscription_name
+  topic                      = google_pubsub_topic.topic.id
   message_retention_duration = "604800s"
 }
 
 # Create a Cloud Function
-resource "google_cloudfunctions2_function" "cloud_function"  {
-  name = "send-email"
-  location = "us-central1"
+resource "google_cloudfunctions2_function" "cloud_function" {
+  name     = var.cloud_function_name
+  location = var.cloud_function_location
 
   build_config {
-    runtime = "nodejs18"
-    entry_point = "sendEmailPubSub"  # Set the entry point 
+    runtime     = var.cloud_function_runtime
+    entry_point = var.cloud_function_entry_point # Set the entry point 
     source {
       storage_source {
-        bucket = "cloud-serverless-bucket"
-        object = "function-source.zip"
+        bucket = var.bucket_name
+        object = var.bucket_object
       }
     }
   }
 
   service_config {
-    # secret_environment_variables {
-    #   key = "DB_HOST"
-    #   secret = google_sql_database_instance.webapp-db-instance.private_ip_address
-    #   project_id = "tf-gcp-infra"
-    #   version = "latest"
-    # }
-
-    # secret_environment_variables {
-    #   key = "DB_USER"
-    #   secret = google_sql_user.webapp-db-user.name
-    #   project_id = "tf-gcp-infra"
-    #   version = "latest"
-    # }
-
-    # secret_environment_variables {
-    #   key = "DB_PASSWORD"
-    #   secret = random_password.password.result
-    #   project_id = "tf-gcp-infra"
-    #   version = "latest"
-    # }
-
     environment_variables = {
-      DB_HOST = google_sql_database_instance.webapp-db-instance.private_ip_address
-      DB_USER = google_sql_user.webapp-db-user.name
+      DB_HOST     = google_sql_database_instance.webapp-db-instance.private_ip_address
+      DB_USER     = google_sql_user.webapp-db-user.name
       DB_PASSWORD = random_password.password.result
-      DB_DIALECT = "mysql"
-      DB_PORT = "3306"
-      DB_SCHEMA = google_sql_database.webapp-db.name
+      DB_DIALECT  = "mysql"
+      DB_PORT     = "3306"
+      DB_SCHEMA   = google_sql_database.webapp-db.name
       DB_TIMEZONE = "-05:00"
       # PORT = "3000"
       TOPIC_NAME = google_pubsub_topic.topic.name
     }
-    # service_account_email = google_service_account.service_account.email
+
+    max_instance_count = var.max_instance_count
 
     vpc_connector = google_vpc_access_connector.vpc_connector.name
   }
 
   event_trigger {
-    event_type = "google.cloud.pubsub.topic.v1.messagePublished"
+    event_type   = "google.cloud.pubsub.topic.v1.messagePublished"
     pubsub_topic = google_pubsub_topic.topic.id
-    retry_policy = "RETRY_POLICY_RETRY"
+    retry_policy = var.retry_policy
   }
 }
 
-# data "google_iam_policy" "pubsub_policy" {
-#   binding {
-#     role = "roles/pubsub.publisher"
-#     members = [
-#       "serviceAccount:${google_service_account.service_account.email}",
-#     ]
-#   }
-# }
-
-# resource "google_pubsub_topic_iam_policy" "policy" {
-#   project = google_pubsub_topic.topic.project
-#   topic = google_pubsub_topic.topic.name
-#   policy_data = data.google_iam_policy.pubsub_policy.policy_data
-# }
 
 # IAM binding for the Pub/Sub topics
 resource "google_pubsub_topic_iam_binding" "topic_binding" {
   project = "tf-gcp-infra"
-  topic = google_pubsub_topic.topic.name
-  role = "roles/pubsub.publisher"
+  topic   = google_pubsub_topic.topic.name
+  role    = "roles/pubsub.publisher"
   members = [
     "serviceAccount:${google_service_account.service_account.email}",
   ]
@@ -417,9 +383,9 @@ resource "google_pubsub_topic_iam_binding" "topic_binding" {
 
 # Create a VPC Access Connector
 resource "google_vpc_access_connector" "vpc_connector" {
-  name          = "vpc-connector"
-  ip_cidr_range = "10.8.0.0/28"
+  name          = var.vpc_connector_name
+  ip_cidr_range = var.vpc_connector_ip_cidr_range
   network       = google_compute_network.vpc_network.name
-  region = "us-central1"
+  region        = var.vpc_connector_region
 }
 

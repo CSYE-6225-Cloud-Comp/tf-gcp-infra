@@ -366,34 +366,62 @@ variable "dns_record_ttl" {
   type = number
 }
 
-# variable pubsub_topic_name {
-#   type = string
-# }
+variable "topic_name" {
+  type = string
+}
 
-# variable topic_message_retention_duration {
-#   type = string
-# }
+variable "message_retention_duration" {
+  type = string
+}
 
-# variable pubsub_subscription_name {
-#   type = string
-# }
+variable "subscription_name" {
+  type = string
+}
 
-# variable cloud_function_name {
-#   type = string
-# }
+variable "cloud_function_name" {
+  type = string
+}
 
 # variable cloud_function_description {
 #   type = string
 # }
 
-# variable cloud_function_runtime {
-#   type = string
-# }
+variable "cloud_function_runtime" {
+  type = string
+}
 
-# variable cloud_function_location {
-#   type = string
-# }
+variable "cloud_function_location" {
+  type = string
+}
 
-# variable cloud_function_entry_point {
-#   type = string
-# }
+variable "cloud_function_entry_point" {
+  type = string
+}
+
+variable "bucket_name" {
+  type = string
+}
+
+variable "bucket_object" {
+  type = string
+}
+
+variable "retry_policy" {
+  type = string
+}
+
+variable "vpc_connector_name" {
+  type = string
+}
+
+variable "vpc_connector_ip_cidr_range" {
+  type = string
+}
+
+variable "vpc_connector_region" {
+  type = string
+}
+
+variable "max_instance_count" {
+  type = number
+}
