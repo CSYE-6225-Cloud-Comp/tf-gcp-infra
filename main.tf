@@ -186,6 +186,7 @@ resource "google_compute_instance" "webapp" {
           echo DB_SCHEMA=${google_sql_database.webapp-db.name} >> .env
           echo DB_TIMEZONE=-05:00 >> .env
           echo PORT=3000 >> .env
+          echo TOPIC_NAME=${google_pubsub_topic.topic.name} >> .env
           cat .env
       else 
         if [ ! -s /opt/webapp/.env ]; then
@@ -196,6 +197,7 @@ resource "google_compute_instance" "webapp" {
           echo DB_SCHEMA=${google_sql_database.webapp-db.name} >> .env
           echo DB_TIMEZONE=-05:00 >> .env
           echo PORT=3000 >> .env
+          echo TOPIC_NAME=${google_pubsub_topic.topic.name} >> .env
           cat .env
         fi
       fi
@@ -291,5 +293,133 @@ resource "random_string" "db_suffix" {
   length  = var.suffix_length
   special = var.suffix_special
   upper   = var.suffix_isUpperCase
+}
+
+# Create a Pub/Sub topic
+resource "google_pubsub_topic" "topic" {
+  name = "verify_email"
+  message_retention_duration = "604800s"
+}
+
+# Create a Pub/Sub subscription
+resource "google_pubsub_subscription" "subscription" {
+  name  = "verify_mail_subscription"
+  topic = google_pubsub_topic.topic.id
+  message_retention_duration = "604800s"
+}
+
+# Create a Cloud Function
+resource "google_cloudfunctions2_function" "cloud_function"  {
+  name = "send-email"
+  location = "us-central1"
+
+  build_config {
+    runtime = "nodejs18"
+    entry_point = "sendEmailPubSub"  # Set the entry point 
+    source {
+      storage_source {
+        bucket = "cloud-serverless-bucket"
+        object = "function-source.zip"
+      }
+    }
+  }
+
+  service_config {
+    # secret_environment_variables {
+    #   key = "DB_HOST"
+    #   secret = google_sql_database_instance.webapp-db-instance.private_ip_address
+    #   project_id = "tf-gcp-infra"
+    #   version = "latest"
+    # }
+
+    # secret_environment_variables {
+    #   key = "DB_USER"
+    #   secret = google_sql_user.webapp-db-user.name
+    #   project_id = "tf-gcp-infra"
+    #   version = "latest"
+    # }
+
+    # secret_environment_variables {
+    #   key = "DB_PASSWORD"
+    #   secret = random_password.password.result
+    #   project_id = "tf-gcp-infra"
+    #   version = "latest"
+    # }
+
+    environment_variables = {
+      DB_HOST = google_sql_database_instance.webapp-db-instance.private_ip_address
+      DB_USER = google_sql_user.webapp-db-user.name
+      DB_PASSWORD = random_password.password.result
+      DB_DIALECT = "mysql"
+      DB_PORT = "3306"
+      DB_SCHEMA = google_sql_database.webapp-db.name
+      DB_TIMEZONE = "-05:00"
+      # PORT = "3000"
+      TOPIC_NAME = google_pubsub_topic.topic.name
+    }
+    # service_account_email = google_service_account.service_account.email
+
+    vpc_connector = google_vpc_access_connector.vpc_connector.name
+  }
+
+  event_trigger {
+    event_type = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic = google_pubsub_topic.topic.id
+    retry_policy = "RETRY_POLICY_RETRY"
+  }
+}
+
+# data "google_iam_policy" "pubsub_policy" {
+#   binding {
+#     role = "roles/pubsub.publisher"
+#     members = [
+#       "serviceAccount:${google_service_account.service_account.email}",
+#     ]
+#   }
+# }
+
+# resource "google_pubsub_topic_iam_policy" "policy" {
+#   project = google_pubsub_topic.topic.project
+#   topic = google_pubsub_topic.topic.name
+#   policy_data = data.google_iam_policy.pubsub_policy.policy_data
+# }
+
+# IAM binding for the Pub/Sub topics
+resource "google_pubsub_topic_iam_binding" "topic_binding" {
+  project = "tf-gcp-infra"
+  topic = google_pubsub_topic.topic.name
+  role = "roles/pubsub.publisher"
+  members = [
+    "serviceAccount:${google_service_account.service_account.email}",
+  ]
+}
+
+# # IAM binding for the Cloud Function    
+# resource "google_cloudfunctions2_function_iam_binding" "binding" {
+#   project = "tf-gcp-infra"
+#   location = google_cloudfunctions2_function.cloud_function.location
+#   cloud_function = google_cloudfunctions2_function.cloud_function.name
+#   role = "roles/viewer"
+#   members = [
+#     "serviceAccount:${google_service_account.service_account.email}",
+#   ]
+# }
+
+# IAM binding for the subscription
+# resource "google_pubsub_subscription_iam_binding" "subscription_binding" {
+#   project = "tf-gcp-infra"
+#   subscription = google_pubsub_subscription.subscription.name
+#   role = "roles/pubsub.subscriber"
+#   members = [
+#     "serviceAccount:${google_service_account.service_account.email}",
+#   ]
+# }
+
+# Create a VPC Access Connector
+resource "google_vpc_access_connector" "vpc_connector" {
+  name          = "vpc-connector"
+  ip_cidr_range = "10.8.0.0/28"
+  network       = google_compute_network.vpc_network.name
+  region = "us-central1"
 }
 

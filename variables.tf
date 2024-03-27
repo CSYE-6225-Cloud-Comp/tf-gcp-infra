@@ -365,3 +365,35 @@ variable "dns_record_type" {
 variable "dns_record_ttl" {
   type = number
 }
+
+# variable pubsub_topic_name {
+#   type = string
+# }
+
+# variable topic_message_retention_duration {
+#   type = string
+# }
+
+# variable pubsub_subscription_name {
+#   type = string
+# }
+
+# variable cloud_function_name {
+#   type = string
+# }
+
+# variable cloud_function_description {
+#   type = string
+# }
+
+# variable cloud_function_runtime {
+#   type = string
+# }
+
+# variable cloud_function_location {
+#   type = string
+# }
+
+# variable cloud_function_entry_point {
+#   type = string
+# }
