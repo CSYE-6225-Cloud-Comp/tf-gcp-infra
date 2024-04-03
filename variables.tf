@@ -425,3 +425,23 @@ variable "vpc_connector_region" {
 variable "max_instance_count" {
   type = number
 }
+
+variable private_ip_google_access_db {
+  type = bool
+}
+
+variable autoscaler_cooldown_period {
+  type = number
+}
+
+variable "autoscaler_cpu_utilization" {
+  type = number
+}
+
+variable autoscaler_min_replicas {
+  type = number
+}
+
+variable autoscaler_max_replicas {
+  type = number
+}
