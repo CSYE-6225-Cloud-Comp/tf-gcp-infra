@@ -646,7 +646,7 @@ resource "google_compute_region_instance_template" "instance_template" {
   labels = {
     managed-by-cnrm = "true"
   }
-  machine_type = "e2-standard-4"
+  machine_type = var.instance_template_machine
   metadata = {
     startup-script = <<-EOT
       #!/bin/bash

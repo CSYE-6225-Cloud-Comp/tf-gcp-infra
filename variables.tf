@@ -445,3 +445,7 @@ variable autoscaler_min_replicas {
 variable autoscaler_max_replicas {
   type = number
 }
+
+variable instance_template_machine {
+  type = string
+}
