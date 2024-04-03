@@ -42,7 +42,7 @@ resource "google_dns_record_set" "default" {
   type         = var.dns_record_type
   # rrdatas      = [google_compute_instance.webapp.network_interface[0].access_config[0].nat_ip]
   rrdatas = [google_compute_global_address.compute_global_address.address]
-  ttl          = var.dns_record_ttl
+  ttl     = var.dns_record_ttl
   # depends_on   = [google_compute_instance.webapp]
   # depends_on = [google_compute_instance_template.instance_template]
 }
@@ -309,7 +309,7 @@ resource "google_pubsub_topic" "topic" {
 resource "google_pubsub_subscription" "subscription" {
   name                       = var.subscription_name
   topic                      = google_pubsub_topic.topic.id
-  message_retention_duration = "604800s"
+  message_retention_duration = var.message_retention_duration
 }
 
 # Create a Cloud Function
@@ -356,9 +356,9 @@ resource "google_cloudfunctions2_function" "cloud_function" {
 
 # IAM binding for the Pub/Sub topics
 resource "google_pubsub_topic_iam_binding" "topic_binding" {
-  project = "tf-gcp-infra"
+  project = var.gcp_project
   topic   = google_pubsub_topic.topic.name
-  role    = "roles/pubsub.publisher"
+  role    = var.pubsub_publisher_role
   members = [
     "serviceAccount:${google_service_account.service_account.email}",
   ]
@@ -525,7 +525,7 @@ resource "google_vpc_access_connector" "vpc_connector" {
 #   }
 
 #   all_instances_config {
-    
+
 #   }
 
 #   named_port {
@@ -622,7 +622,7 @@ resource "google_vpc_access_connector" "vpc_connector" {
 
 # Create a managed SSL certificate
 resource "google_compute_managed_ssl_certificate" "lb_default" {
-  project = var.gcp_project
+  project  = var.gcp_project
   provider = google-beta
   name     = var.ssl_certificate_name
 
@@ -635,8 +635,8 @@ resource "google_compute_managed_ssl_certificate" "lb_default" {
 resource "google_compute_region_instance_template" "instance_template" {
   name = var.instance_template_name
   disk {
-    auto_delete  = true
-    boot         = true
+    auto_delete = true
+    boot        = true
     # device_name  = "persistent-disk-0"
     mode         = var.instance_template_mode
     source_image = var.image
@@ -689,9 +689,9 @@ resource "google_compute_region_instance_template" "instance_template" {
   }
   region = var.load_balancing_region
   scheduling {
-    automatic_restart   = true
-    on_host_maintenance = "MIGRATE"
-    provisioning_model  = "STANDARD"
+    automatic_restart   = var.instance_template_automatic_template
+    on_host_maintenance = var.instance_template_automatic_template_on_host_maintenance
+    provisioning_model  = var.instance_template_automatic_template_provisioning_model
   }
   service_account {
     email  = google_service_account.service_account.email
@@ -702,81 +702,81 @@ resource "google_compute_region_instance_template" "instance_template" {
 
 # Create a managed instance group
 resource "google_compute_region_instance_group_manager" "managed_instance_group" {
-  name = "lb-backend-example"
-  region = "us-east1"
+  name   = var.managed_instance_group_name
+  region = var.load_balancing_region
   # zone = "us-east1-b"
   named_port {
-    name = "http"
-    port = 3000
+    name = var.managed_instance_named_port_name
+    port = var.managed_instance_named_port_number
   }
   version {
     instance_template = google_compute_region_instance_template.instance_template.id
-    name              = "primary"
+    name              = var.managed_instance_group_version_name
   }
-  base_instance_name = "vm"
+  base_instance_name = var.base_instance_name
   # target_size        = 2
 
   auto_healing_policies {
-    initial_delay_sec = 120
-    health_check = google_compute_health_check.db_health_check.id
+    initial_delay_sec = var.auto_healing_policies_initial_delay_sec
+    health_check      = google_compute_health_check.db_health_check.id
   }
 }
 
 # Create a firewall rule to allow traffic to the instances
 resource "google_compute_firewall" "default" {
-  name          = "fw-allow-health-check"
-  direction     = "INGRESS"
+  name          = var.health_check_firewall_name
+  direction     = var.health_check_firewall_direction
   network       = google_compute_network.vpc_network.name
-  priority      = 1000
+  priority      = var.health_check_firewall_priority
   source_ranges = var.ingress_source_ranges
-  target_tags   = ["allow-health-check"]
+  target_tags   = var.health_check_firewall_target_tags
   allow {
-    ports    = ["80"]
-    protocol = "tcp"
+    ports    = var.health_check_firewall_allow_port
+    protocol = var.health_check_firewall_protocol
   }
 }
 
 resource "google_compute_global_address" "compute_global_address" {
-  name       = "lb-ipv4-1"
-  ip_version = "IPV4"
-  project = var.gcp_project
+  name       = var.compute_global_address_name
+  ip_version = var.compute_global_address_name_ip_version
+  project    = var.gcp_project
 }
 
 # Health Check
 resource "google_compute_health_check" "db_health_check" {
   name               = var.health_check_name
-  check_interval_sec = 5
-  healthy_threshold  = 2
+  check_interval_sec = var.health_check_check_interval_sec
+  healthy_threshold  = var.health_check_healthy_threshold
 
   http_health_check {
-    port               = 3000
-    request_path       = "/healthz"
+    port         = var.health_check_port
+    request_path = var.health_check_request_path
   }
 
-  timeout_sec         = 5
-  unhealthy_threshold = 5
+  timeout_sec         = var.health_check_timeout_sec
+  unhealthy_threshold = var.health_check_unhealthy_threshold
 }
 
 # Backend Service
 resource "google_compute_backend_service" "backend_service" {
-  name                            = "web-backend-service"
-  connection_draining_timeout_sec = 0
+  name                            = var.backend_service_name
+  connection_draining_timeout_sec = var.backend_service_connection_draining_timeout_sec
   health_checks                   = [google_compute_health_check.db_health_check.id]
-  load_balancing_scheme           = "EXTERNAL"
-  port_name                       = "http"
-  protocol                        = "HTTP"
-  session_affinity                = "NONE"
-  timeout_sec                     = 30
+  load_balancing_scheme           = var.backend_load_balancing_scheme
+  port_name                       = var.backend_port_name
+  protocol                        = var.backend_protocol
+  session_affinity                = var.backend_session_affinity
+  timeout_sec                     = var.backend_timeout_sec
   backend {
     group           = google_compute_region_instance_group_manager.managed_instance_group.instance_group
-    balancing_mode  = "UTILIZATION"
-    capacity_scaler = 1.0
+    balancing_mode  = var.backend_balancing_mode
+    capacity_scaler = var.backend_capacity_scaler
   }
 }
 
 # URL Map
 resource "google_compute_url_map" "url_map" {
-  name            = "web-map-http"
+  name            = var.url_map_name
   default_service = google_compute_backend_service.backend_service.id
 }
 
@@ -786,26 +786,26 @@ resource "google_compute_url_map" "url_map" {
 # }
 
 resource "google_compute_target_https_proxy" "https_proxy" {
-  name             = "lb-proxy"
+  name             = var.https_proxy_name
   url_map          = google_compute_url_map.url_map.id
   ssl_certificates = [google_compute_managed_ssl_certificate.lb_default.id]
 }
 
 resource "google_compute_global_forwarding_rule" "forwarding_rule" {
-  name                  = "http-content-rule"
-  ip_protocol           = "TCP"
-  load_balancing_scheme = "EXTERNAL"
-  port_range            = "443"
+  name                  = var.forwarding_rule_name
+  ip_protocol           = var.forwarding_rule_ip_protocol
+  load_balancing_scheme = var.forwarding_load_balancing_scheme
+  port_range            = var.forwarding_rule_port_range
   target                = google_compute_target_https_proxy.https_proxy.id
   ip_address            = google_compute_global_address.compute_global_address.id
 }
 
 # Autoscaler
 resource "google_compute_region_autoscaler" "auto_scaler" {
-  project = var.gcp_project
+  project  = var.gcp_project
   provider = google-beta
 
-  name   = var.autoscaler_name
+  name = var.autoscaler_name
   # zone   = "us-central1-f"
   region = var.load_balancing_region
   target = google_compute_region_instance_group_manager.managed_instance_group.id
