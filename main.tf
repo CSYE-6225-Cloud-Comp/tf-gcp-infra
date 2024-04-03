@@ -113,7 +113,7 @@ resource "google_compute_firewall" "allow-webapp-traffic" {
     ports    = var.webapp_ports    # 3000
   }
   # source_ranges = var.source_ranges # 0.0.0.0/0
-  source_ranges = ["130.211.0.0/22", "35.191.0.0/16"]
+  source_ranges = var.ingress_source_ranges
   target_tags   = var.target_tags
 }
 
@@ -622,29 +622,29 @@ resource "google_vpc_access_connector" "vpc_connector" {
 
 # Create a managed SSL certificate
 resource "google_compute_managed_ssl_certificate" "lb_default" {
-  project = "tf-gcp-infra"
+  project = var.gcp_project
   provider = google-beta
-  name     = "myservice-ssl-cert"
+  name     = var.ssl_certificate_name
 
   managed {
-    domains = ["cloudnativeapp.me"]
+    domains = var.domains
   }
 }
 
 # Create a compute instance template
 resource "google_compute_region_instance_template" "instance_template" {
-  name = "lb-backend-template"
+  name = var.instance_template_name
   disk {
     auto_delete  = true
     boot         = true
     # device_name  = "persistent-disk-0"
-    mode         = "READ_WRITE"
+    mode         = var.instance_template_mode
     source_image = var.image
     type         = var.type
     disk_size_gb = var.size
   }
   labels = {
-    managed-by-cnrm = "true"
+    managed-by-cnrm = var.instance_template_labels
   }
   machine_type = var.instance_template_machine
   metadata = {
@@ -682,12 +682,12 @@ resource "google_compute_region_instance_template" "instance_template" {
 
   network_interface {
     access_config {
-      network_tier = "PREMIUM"
+      network_tier = var.network_tier
     }
     network    = google_compute_network.vpc_network.name
     subnetwork = google_compute_subnetwork.vpc_subnet_webapp.name
   }
-  region = "us-east1"
+  region = var.load_balancing_region
   scheduling {
     automatic_restart   = true
     on_host_maintenance = "MIGRATE"
@@ -695,7 +695,7 @@ resource "google_compute_region_instance_template" "instance_template" {
   }
   service_account {
     email  = google_service_account.service_account.email
-    scopes = ["cloud-platform"]
+    scopes = var.full_scope
   }
   tags = var.tags
 }
@@ -728,7 +728,7 @@ resource "google_compute_firewall" "default" {
   direction     = "INGRESS"
   network       = google_compute_network.vpc_network.name
   priority      = 1000
-  source_ranges = ["130.211.0.0/22", "35.191.0.0/16"]
+  source_ranges = var.ingress_source_ranges
   target_tags   = ["allow-health-check"]
   allow {
     ports    = ["80"]
@@ -739,12 +739,12 @@ resource "google_compute_firewall" "default" {
 resource "google_compute_global_address" "compute_global_address" {
   name       = "lb-ipv4-1"
   ip_version = "IPV4"
-  project = "tf-gcp-infra"
+  project = var.gcp_project
 }
 
 # Health Check
 resource "google_compute_health_check" "db_health_check" {
-  name               = "db-health-check"
+  name               = var.health_check_name
   check_interval_sec = 5
   healthy_threshold  = 2
 
@@ -802,12 +802,12 @@ resource "google_compute_global_forwarding_rule" "forwarding_rule" {
 
 # Autoscaler
 resource "google_compute_region_autoscaler" "auto_scaler" {
-  project = "tf-gcp-infra"
+  project = var.gcp_project
   provider = google-beta
 
-  name   = "my-autoscaler"
+  name   = var.autoscaler_name
   # zone   = "us-central1-f"
-  region = "us-east1"
+  region = var.load_balancing_region
   target = google_compute_region_instance_group_manager.managed_instance_group.id
 
   autoscaling_policy {

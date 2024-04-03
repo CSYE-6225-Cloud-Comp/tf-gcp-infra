@@ -449,3 +449,43 @@ variable autoscaler_max_replicas {
 variable instance_template_machine {
   type = string
 }
+
+variable ingress_source_ranges {
+  type = list(string)
+}
+
+variable load_balancing_region {
+  type = string
+}
+
+variable domains {
+  type = list(string)
+}
+
+variable ssl_certificate_name {
+  type = string
+}
+
+variable instance_template_name {
+  type = string
+}
+
+variable instance_template_mode {
+  type = string
+}
+
+variable instance_template_labels {
+  type = string
+}
+
+variable full_scope {
+  type = list(string)
+}
+
+variable autoscaler_name {
+  type = string
+}
+
+variable "health_check_name" {
+  type = string
+}
