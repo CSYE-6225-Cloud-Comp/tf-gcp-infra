@@ -101,6 +101,20 @@ resource "google_compute_firewall" "deny-ssh-traffic" {
   target_tags   = var.target_tags
 }
 
+# Add a firewall rule to allow traffic from internet to ssh port
+resource "google_compute_firewall" "allow-ssh-traffic" {
+  name      = "allow-ssh-traffic"
+  network   = google_compute_network.vpc_network.id
+  direction = var.direction
+  allow {
+    protocol = var.ssh_protocol # TCP
+    ports    = ["22"]   # 22
+  }
+  source_ranges = var.source_ranges #
+  target_tags = ["allow-ssh-traffic"]
+  
+}
+
 
 # Add a firewall rule to allow traffic from internet to webapp subnet
 resource "google_compute_firewall" "allow-webapp-traffic" {
@@ -720,6 +734,7 @@ resource "google_compute_region_instance_group_manager" "managed_instance_group"
     initial_delay_sec = var.auto_healing_policies_initial_delay_sec
     health_check      = google_compute_health_check.db_health_check.id
   }
+
 }
 
 # Create a firewall rule to allow traffic to the instances
@@ -835,4 +850,7 @@ resource "google_compute_region_autoscaler" "auto_scaler" {
 #   target_tags = ["deny-webapp-traffic"]
 
 # }
+
+
+
 
