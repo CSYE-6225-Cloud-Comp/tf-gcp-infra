@@ -935,6 +935,40 @@ resource "google_secret_manager_secret_version" "db_schema_secret_version" {
   secret_data = google_sql_database.webapp-db.name
 }
 
+# CMEK secret
+resource "google_secret_manager_secret" "cmek_secret" {
+  secret_id = "cmek"
+
+  replication {
+    auto {
+      
+    }
+  }
+}
+
+# CMEK secret version
+resource "google_secret_manager_secret_version" "cmek_secret_version" {
+  secret = google_secret_manager_secret.cmek_secret.name
+  secret_data = google_kms_crypto_key.vm-key.id
+}
+
+# Key Ring secret
+resource "google_secret_manager_secret" "key_ring_secret" {
+  secret_id = "key_ring"
+
+  replication {
+    auto {
+      
+    }
+  }
+}
+
+# Key Ring secret version
+resource "google_secret_manager_secret_version" "key_ring_secret_version" {
+  secret = google_secret_manager_secret.key_ring_secret.name
+  secret_data = google_kms_key_ring.keyring.name
+}
+
 # Create a random suffix for the key ring and keys
 resource "random_string" "keys" {
   length  = var.suffix_length
