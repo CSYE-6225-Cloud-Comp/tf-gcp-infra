@@ -25,6 +25,16 @@ resource "google_project_iam_binding" "logging_admin" {
   ]
 }
 
+# # Bind IAM Role to the service account - Service Agent
+# resource "google_project_iam_binding" "service_agent" {
+#   project = var.gcp_project
+#   role    = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+
+#   members = [
+#     "serviceAccount:service-1007110371311@compute-system.iam.gserviceaccount.com",
+#   ]
+# }
+
 # Bind IAM Role to the service account - Monitoring Metric Writer Role
 resource "google_project_iam_binding" "metric_writer" {
   project = var.gcp_project
@@ -252,8 +262,8 @@ resource "google_sql_database_instance" "webapp-db-instance" {
       enabled            = var.backup_enabled
       binary_log_enabled = var.binary_log_enabled
     }
-
   }
+  encryption_key_name = google_kms_crypto_key.sql-instance-key.id
 }
 
 # Create a database
@@ -336,8 +346,8 @@ resource "google_cloudfunctions2_function" "cloud_function" {
     entry_point = var.cloud_function_entry_point # Set the entry point 
     source {
       storage_source {
-        bucket = var.bucket_name
-        object = var.bucket_object
+        bucket = "bucket-serverless-1"
+        object = "bucket-object"
       }
     }
   }
@@ -656,6 +666,10 @@ resource "google_compute_region_instance_template" "instance_template" {
     source_image = var.image
     type         = var.type
     disk_size_gb = var.size
+
+    disk_encryption_key {
+      kms_key_self_link = google_kms_crypto_key.vm-key.id
+    }
   }
   labels = {
     managed-by-cnrm = var.instance_template_labels
@@ -712,6 +726,8 @@ resource "google_compute_region_instance_template" "instance_template" {
     scopes = var.full_scope
   }
   tags = var.tags
+
+  depends_on = [google_kms_crypto_key_iam_binding.vm_crypto_key_binding]
 }
 
 # Create a managed instance group
@@ -826,8 +842,8 @@ resource "google_compute_region_autoscaler" "auto_scaler" {
   target = google_compute_region_instance_group_manager.managed_instance_group.id
 
   autoscaling_policy {
-    max_replicas    = var.autoscaler_min_replicas
-    min_replicas    = var.autoscaler_max_replicas
+    max_replicas    = var.autoscaler_max_replicas
+    min_replicas    = var.autoscaler_min_replicas
     cooldown_period = var.autoscaler_cooldown_period
 
     cpu_utilization {
@@ -919,112 +935,115 @@ resource "google_secret_manager_secret_version" "db_schema_secret_version" {
   secret_data = google_sql_database.webapp-db.name
 }
 
-# # Create a key ring
-# resource "google_kms_key_ring" "keyring" {
-#   name     = "${var.key_ring_name}-${random_string.keys.result}"
-#   location = var.key_ring_location
-# }
+# Create a random suffix for the key ring and keys
+resource "random_string" "keys" {
+  length  = var.suffix_length
+  special = var.suffix_special
+  upper   = var.suffix_isUpperCase
+}
 
-# # Create a random suffix for the key ring and keys
-# resource "random_string" "keys" {
-#   length  = var.suffix_length
-#   special = var.suffix_special
-#   upper   = var.suffix_isUpperCase
-# }
+# Create a key ring
+resource "google_kms_key_ring" "keyring" {
+  name     = "${var.key_ring_name}-${random_string.keys.result}"
+  location = var.key_ring_location
+}
 
-# # Create a key for VM
-# resource "google_kms_crypto_key" "vm-key" {
-#   name            = "${var.vm_key_name}-${random_string.keys.result}"
-#   key_ring        = google_kms_key_ring.keyring.id
-#   rotation_period = var.key_rotation_period
+# Create a key for VM
+resource "google_kms_crypto_key" "vm-key" {
+  name            = "${var.vm_key_name}-${random_string.keys.result}"
+  key_ring        = google_kms_key_ring.keyring.id
+  rotation_period = var.key_rotation_period
 
-#   lifecycle {
-#     prevent_destroy = false
-#   }
-# }
+  lifecycle {
+    prevent_destroy = false
+  }
+}
 
-# # Create a key for SQL instance
-# resource "google_kms_crypto_key" "sql-instance-key" {
-#   name            = "${var.sql_instance_key_name}-${random_string.keys.result}"
-#   key_ring        = google_kms_key_ring.keyring.id
-#   rotation_period = var.key_rotation_period
+# VM key binding
+resource "google_kms_crypto_key_iam_binding" "vm_crypto_key_binding" {
+  crypto_key_id = google_kms_crypto_key.vm-key.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
 
-#   lifecycle {
-#     prevent_destroy = false
-#   }
-# }
+  members = [
+    "serviceAccount:1007110371311-compute@developer.gserviceaccount.com",
+  ]
+}
 
-# # Create a key for Storage Bucket
-# resource "google_kms_crypto_key" "storage-bucket-key" {
-#   name            = "${var.storage_bucket_key_name}-${random_string.keys.result}"
-#   key_ring        = google_kms_key_ring.keyring.id
-#   rotation_period = var.key_rotation_period
+# CMEK for SQL instance
+resource "google_kms_crypto_key" "sql-instance-key" {
+  name            = "${var.sql_instance_key_name}-${random_string.keys.result}"
+  key_ring        = google_kms_key_ring.keyring.id
+  rotation_period = var.key_rotation_period
 
-#   lifecycle {
-#     prevent_destroy = false
-#   }
-# }
+  lifecycle {
+    prevent_destroy = false
+  }
+}
 
-# # Storage Bucket resource
-# resource "google_storage_bucket" "bucket" {
-#   name          = "cloud-serverless-bucket"
-#   location = "us-east1"
-#   encryption {
-#     default_kms_key_name = google_kms_crypto_key.storage-bucket-key.id
-#   }
-# }
+resource "google_project_service_identity" "gcp_sa_cloud_sql" {
+  project = var.gcp_project
+  provider = google-beta
+  service  = "sqladmin.googleapis.com"
+}
 
-# data "google_storage_project_service_account" "gcs_account" {
-# }
+# SQL instance key binding
+resource "google_kms_crypto_key_iam_binding" "sql_crypto_key_binding" {
+  crypto_key_id = google_kms_crypto_key.sql-instance-key.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
 
-# # Storage bucket key binding
-# resource "google_kms_crypto_key_iam_binding" "bucket_crypto_key_binding" {
-#   crypto_key_id = google_kms_crypto_key.storage-bucket-key.id
-#   role          = "roles/cloudkms.cryptoKeyEncrypter"
-  
-#   members = [
-#     "serviceAccount:${data.google_storage_project_service_account.gcs_account.email_address}"
-#   ]
-# }
+  members = [
+    "serviceAccount:${google_project_service_identity.gcp_sa_cloud_sql.email}",
+  ]
+}
 
-# # VM key binding
-# resource "google_kms_crypto_key_iam_binding" "vm_crypto_key_binding" {
-#   crypto_key_id = google_kms_crypto_key.vm-key.id
-#   role          = "roles/cloudkms.cryptoKeyEncrypter"
-
-#   members = [
-#     "serviceAccount:1007110371311-compute@developer.gserviceaccount.com",
-#   ]
-# }
-
-# resource "google_project_service_identity" "gcp_sa_cloud_sql" {
-#   project = var.gcp_project
-#   provider = google-beta
-#   service  = "sqladmin.googleapis.com"
-# }
-
-# # SQL instance key binding
-# resource "google_kms_crypto_key_iam_binding" "sql_crypto_key_binding" {
-#   crypto_key_id = google_kms_crypto_key.sql-instance-key.id
-#   role          = "roles/cloudkms.cryptoKeyEncrypter"
-
-#   members = [
-#     "serviceAccount:${google_project_service_identity.gcp_sa_cloud_sql.email}",
-#   ]
-# }
-
+# Storage Bucket for serverless code
 resource "google_storage_bucket" "storage_bucket" {
   name = "bucket-serverless-1"
   location = "us-east1"
   storage_class = "standard"
+  encryption {
+    default_kms_key_name = google_kms_crypto_key.storage-bucket-key.id
+  }
+  depends_on = [google_kms_crypto_key_iam_binding.bucket_crypto_key_binding]
 }
 
+# Storage Bucket Object
 resource "google_storage_bucket_object" "bucket_object" {
   bucket = google_storage_bucket.storage_bucket.name
   name = "bucket-object"
   source = "C:\\Users\\Dell\\Downloads\\function-source.zip"
 }
 
+# CMEK for Storage Bucket
+resource "google_kms_crypto_key" "storage-bucket-key" {
+  name            = "${var.storage_bucket_key_name}-${random_string.keys.result}"
+  key_ring        = google_kms_key_ring.keyring.id
+  rotation_period = var.key_rotation_period
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+data "google_storage_project_service_account" "gcs_account" {
+}
+
+# Storage bucket key binding
+resource "google_kms_crypto_key_iam_binding" "bucket_crypto_key_binding" {
+  crypto_key_id = google_kms_crypto_key.storage-bucket-key.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  
+  members = [
+    "serviceAccount:${data.google_storage_project_service_account.gcs_account.email_address}"
+  ]
+}
+
+# resource "google_kms_crypto_key_iam_binding" "" {
+#   key
+
+#  Service agent service account email
+# }
 
 
 
+# Depends on VM for both iam bindinfs
