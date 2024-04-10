@@ -645,3 +645,31 @@ variable "health_check_firewall_allow_port" {
 variable "health_check_firewall_protocol" {
   type = string
 }
+
+variable key_ring_name {
+  type = string
+}
+
+variable "key_ring_location" {
+  type = string
+}
+
+variable "vm_key_name" {
+  type = string
+}
+
+variable key_rotation_period {
+  type = string
+}
+
+variable key_prevent_destroy {
+  type = bool
+}
+
+variable "sql_instance_key_name" {
+  type = string
+}
+
+variable "storage_bucket_key_name" {
+  type = string
+}
