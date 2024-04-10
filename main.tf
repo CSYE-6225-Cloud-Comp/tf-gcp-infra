@@ -851,6 +851,180 @@ resource "google_compute_region_autoscaler" "auto_scaler" {
 
 # }
 
+# Create a secret for db private ip address
+resource "google_secret_manager_secret" "db_ip" {
+  secret_id = "db_ip"
+
+  replication {
+    auto {
+      
+    }
+  }
+}
+
+# Store the value of the secret in the secret version
+resource "google_secret_manager_secret_version" "db_ip_secret_version" {
+  secret = google_secret_manager_secret.db_ip.name
+  secret_data = google_sql_database_instance.webapp-db-instance.private_ip_address
+}
+
+# db user secret
+resource "google_secret_manager_secret" "db_user" {
+  secret_id = "db_user"
+
+  replication {
+    auto {
+      
+    }
+  }
+}
+
+# db user secret version
+resource "google_secret_manager_secret_version" "db_user_secret_version" {
+  secret = google_secret_manager_secret.db_user.name
+  secret_data = google_sql_user.webapp-db-user.name
+}
+
+# db password secret
+resource "google_secret_manager_secret" "db_password" {
+  secret_id = "db_password"
+
+  replication {
+    auto {
+      
+    }
+  }
+}
+
+# db password secret version
+resource "google_secret_manager_secret_version" "db_password_secret_version" {
+  secret = google_secret_manager_secret.db_password.name
+  secret_data = random_password.password.result
+}
+
+# db schema secret
+resource "google_secret_manager_secret" "db_schema" {
+  secret_id = "db_schema"
+
+  replication {
+    auto {
+      
+    }
+  }
+}
+
+# db schema secret version
+resource "google_secret_manager_secret_version" "db_schema_secret_version" {
+  secret = google_secret_manager_secret.db_schema.name
+  secret_data = google_sql_database.webapp-db.name
+}
+
+# # Create a key ring
+# resource "google_kms_key_ring" "keyring" {
+#   name     = "${var.key_ring_name}-${random_string.keys.result}"
+#   location = var.key_ring_location
+# }
+
+# # Create a random suffix for the key ring and keys
+# resource "random_string" "keys" {
+#   length  = var.suffix_length
+#   special = var.suffix_special
+#   upper   = var.suffix_isUpperCase
+# }
+
+# # Create a key for VM
+# resource "google_kms_crypto_key" "vm-key" {
+#   name            = "${var.vm_key_name}-${random_string.keys.result}"
+#   key_ring        = google_kms_key_ring.keyring.id
+#   rotation_period = var.key_rotation_period
+
+#   lifecycle {
+#     prevent_destroy = false
+#   }
+# }
+
+# # Create a key for SQL instance
+# resource "google_kms_crypto_key" "sql-instance-key" {
+#   name            = "${var.sql_instance_key_name}-${random_string.keys.result}"
+#   key_ring        = google_kms_key_ring.keyring.id
+#   rotation_period = var.key_rotation_period
+
+#   lifecycle {
+#     prevent_destroy = false
+#   }
+# }
+
+# # Create a key for Storage Bucket
+# resource "google_kms_crypto_key" "storage-bucket-key" {
+#   name            = "${var.storage_bucket_key_name}-${random_string.keys.result}"
+#   key_ring        = google_kms_key_ring.keyring.id
+#   rotation_period = var.key_rotation_period
+
+#   lifecycle {
+#     prevent_destroy = false
+#   }
+# }
+
+# # Storage Bucket resource
+# resource "google_storage_bucket" "bucket" {
+#   name          = "cloud-serverless-bucket"
+#   location = "us-east1"
+#   encryption {
+#     default_kms_key_name = google_kms_crypto_key.storage-bucket-key.id
+#   }
+# }
+
+# data "google_storage_project_service_account" "gcs_account" {
+# }
+
+# # Storage bucket key binding
+# resource "google_kms_crypto_key_iam_binding" "bucket_crypto_key_binding" {
+#   crypto_key_id = google_kms_crypto_key.storage-bucket-key.id
+#   role          = "roles/cloudkms.cryptoKeyEncrypter"
+  
+#   members = [
+#     "serviceAccount:${data.google_storage_project_service_account.gcs_account.email_address}"
+#   ]
+# }
+
+# # VM key binding
+# resource "google_kms_crypto_key_iam_binding" "vm_crypto_key_binding" {
+#   crypto_key_id = google_kms_crypto_key.vm-key.id
+#   role          = "roles/cloudkms.cryptoKeyEncrypter"
+
+#   members = [
+#     "serviceAccount:1007110371311-compute@developer.gserviceaccount.com",
+#   ]
+# }
+
+# resource "google_project_service_identity" "gcp_sa_cloud_sql" {
+#   project = var.gcp_project
+#   provider = google-beta
+#   service  = "sqladmin.googleapis.com"
+# }
+
+# # SQL instance key binding
+# resource "google_kms_crypto_key_iam_binding" "sql_crypto_key_binding" {
+#   crypto_key_id = google_kms_crypto_key.sql-instance-key.id
+#   role          = "roles/cloudkms.cryptoKeyEncrypter"
+
+#   members = [
+#     "serviceAccount:${google_project_service_identity.gcp_sa_cloud_sql.email}",
+#   ]
+# }
+
+resource "google_storage_bucket" "storage_bucket" {
+  name = "bucket-serverless-1"
+  location = "us-east1"
+  storage_class = "standard"
+}
+
+resource "google_storage_bucket_object" "bucket_object" {
+  bucket = google_storage_bucket.storage_bucket.name
+  name = "bucket-object"
+  source = "C:\\Users\\Dell\\Downloads\\function-source.zip"
+}
+
 
 
 
