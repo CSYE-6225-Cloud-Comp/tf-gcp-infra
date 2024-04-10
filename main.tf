@@ -118,11 +118,11 @@ resource "google_compute_firewall" "allow-ssh-traffic" {
   direction = var.direction
   allow {
     protocol = var.ssh_protocol # TCP
-    ports    = ["22"]   # 22
+    ports    = ["22"]           # 22
   }
   source_ranges = var.source_ranges #
-  target_tags = ["allow-ssh-traffic"]
-  
+  target_tags   = ["allow-ssh-traffic"]
+
 }
 
 
@@ -873,14 +873,14 @@ resource "google_secret_manager_secret" "db_ip" {
 
   replication {
     auto {
-      
+
     }
   }
 }
 
 # Store the value of the secret in the secret version
 resource "google_secret_manager_secret_version" "db_ip_secret_version" {
-  secret = google_secret_manager_secret.db_ip.name
+  secret      = google_secret_manager_secret.db_ip.name
   secret_data = google_sql_database_instance.webapp-db-instance.private_ip_address
 }
 
@@ -890,14 +890,14 @@ resource "google_secret_manager_secret" "db_user" {
 
   replication {
     auto {
-      
+
     }
   }
 }
 
 # db user secret version
 resource "google_secret_manager_secret_version" "db_user_secret_version" {
-  secret = google_secret_manager_secret.db_user.name
+  secret      = google_secret_manager_secret.db_user.name
   secret_data = google_sql_user.webapp-db-user.name
 }
 
@@ -907,14 +907,14 @@ resource "google_secret_manager_secret" "db_password" {
 
   replication {
     auto {
-      
+
     }
   }
 }
 
 # db password secret version
 resource "google_secret_manager_secret_version" "db_password_secret_version" {
-  secret = google_secret_manager_secret.db_password.name
+  secret      = google_secret_manager_secret.db_password.name
   secret_data = random_password.password.result
 }
 
@@ -924,14 +924,14 @@ resource "google_secret_manager_secret" "db_schema" {
 
   replication {
     auto {
-      
+
     }
   }
 }
 
 # db schema secret version
 resource "google_secret_manager_secret_version" "db_schema_secret_version" {
-  secret = google_secret_manager_secret.db_schema.name
+  secret      = google_secret_manager_secret.db_schema.name
   secret_data = google_sql_database.webapp-db.name
 }
 
@@ -941,14 +941,14 @@ resource "google_secret_manager_secret" "cmek_secret" {
 
   replication {
     auto {
-      
+
     }
   }
 }
 
 # CMEK secret version
 resource "google_secret_manager_secret_version" "cmek_secret_version" {
-  secret = google_secret_manager_secret.cmek_secret.name
+  secret      = google_secret_manager_secret.cmek_secret.name
   secret_data = google_kms_crypto_key.vm-key.id
 }
 
@@ -958,14 +958,14 @@ resource "google_secret_manager_secret" "key_ring_secret" {
 
   replication {
     auto {
-      
+
     }
   }
 }
 
 # Key Ring secret version
 resource "google_secret_manager_secret_version" "key_ring_secret_version" {
-  secret = google_secret_manager_secret.key_ring_secret.name
+  secret      = google_secret_manager_secret.key_ring_secret.name
   secret_data = google_kms_key_ring.keyring.name
 }
 
@@ -996,7 +996,7 @@ resource "google_kms_crypto_key" "vm-key" {
 # VM key binding
 resource "google_kms_crypto_key_iam_binding" "vm_crypto_key_binding" {
   crypto_key_id = google_kms_crypto_key.vm-key.id
-  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  role          = var.encrypterDecrypterRole
 
   members = [
     "serviceAccount:1007110371311-compute@developer.gserviceaccount.com",
@@ -1015,7 +1015,7 @@ resource "google_kms_crypto_key" "sql-instance-key" {
 }
 
 resource "google_project_service_identity" "gcp_sa_cloud_sql" {
-  project = var.gcp_project
+  project  = var.gcp_project
   provider = google-beta
   service  = "sqladmin.googleapis.com"
 }
@@ -1023,7 +1023,7 @@ resource "google_project_service_identity" "gcp_sa_cloud_sql" {
 # SQL instance key binding
 resource "google_kms_crypto_key_iam_binding" "sql_crypto_key_binding" {
   crypto_key_id = google_kms_crypto_key.sql-instance-key.id
-  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  role          = var.encrypterDecrypterRole
 
   members = [
     "serviceAccount:${google_project_service_identity.gcp_sa_cloud_sql.email}",
@@ -1032,9 +1032,9 @@ resource "google_kms_crypto_key_iam_binding" "sql_crypto_key_binding" {
 
 # Storage Bucket for serverless code
 resource "google_storage_bucket" "storage_bucket" {
-  name = "bucket-serverless-1"
-  location = "us-east1"
-  storage_class = "standard"
+  name          = var.bucket_name
+  location      = var.bucket_location
+  storage_class = var.bucket_storage_class
   encryption {
     default_kms_key_name = google_kms_crypto_key.storage-bucket-key.id
   }
@@ -1044,8 +1044,8 @@ resource "google_storage_bucket" "storage_bucket" {
 # Storage Bucket Object
 resource "google_storage_bucket_object" "bucket_object" {
   bucket = google_storage_bucket.storage_bucket.name
-  name = "bucket-object"
-  source = "C:\\Users\\Dell\\Downloads\\function-source.zip"
+  name   = var.bucket_object_name
+  source = var.bucket_object_source
 }
 
 # CMEK for Storage Bucket
@@ -1065,8 +1065,8 @@ data "google_storage_project_service_account" "gcs_account" {
 # Storage bucket key binding
 resource "google_kms_crypto_key_iam_binding" "bucket_crypto_key_binding" {
   crypto_key_id = google_kms_crypto_key.storage-bucket-key.id
-  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-  
+  role          = var.encrypterDecrypterRole
+
   members = [
     "serviceAccount:${data.google_storage_project_service_account.gcs_account.email_address}"
   ]
